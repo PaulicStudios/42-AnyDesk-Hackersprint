@@ -135,6 +135,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 			}
 		}
 	}
+	PRINT_ERROR("No header found\n");
 }
 
 void export_file(struct file_content *file_content)

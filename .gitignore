@@ -3,3 +3,5 @@ cave.bmp
 
 decoder
 output.bmp
+gmon.out
+profile.txt
