@@ -65,7 +65,7 @@ struct bgr_pixel
 
 u32 get_pixel_index(struct bmp_header *header, u32 row, u32 col)
 {
-	return (row * header->width + col) * 4 + header->data_offset;
+	return row * header->width * 4 + col * 4 + header->data_offset;
 }
 
 struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
@@ -111,46 +111,30 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
 
 void decode_file(struct file_content *file_content, struct bmp_header *header)
 {
-	char header_found = 0;
-	u16 strLength = 0;
-
 	for (u32 row = 0; row < header->height; row += 1)
 	{
 		for (u32 col = 0; col < header->width; col += 1)
 		{
 			if (valid_header(file_content, header, row, col))
 			{
-				if (!header_found)
-				{
-					// printf("Found at %i %i\n", row, col);
-					// file_content->data[pixel_index] = (u8) 255;
-					// file_content->data[pixel_index + 1] = (u8) 0;
-					// file_content->data[pixel_index + 2] = (u8) 0;
+				// printf("Found at %i %i\n", row, col);
+				// file_content->data[pixel_index] = (u8) 255;
+				// file_content->data[pixel_index + 1] = (u8) 0;
+				// file_content->data[pixel_index + 2] = (u8) 0;
 
-					struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
-					strLength = lenght_pixel.b + lenght_pixel.r;
-					// printf("Lenght: %i\n", strLength);
-					header_found = 1;
+				struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
+				u16 strLength = lenght_pixel.b + lenght_pixel.r;
+				// printf("Lenght: %i\n", strLength);
 
-					char output[strLength];
-					for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
-						u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+				char output[strLength];
+				for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
+					u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
 
-						// u8 remaining = (strLength - (i * 3));
-
-						// output[i] = file_content->data[char_pixel_ind];
-						// if (remaining >= 3)
-						// 	write(STDOUT_FILENO, (char *) &(file_content->data[char_pixel_ind]), 3);
-						// else
-						// 	write(STDOUT_FILENO, (char *) &(file_content->data[char_pixel_ind]), remaining);
-
-						__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
-
-                        _mm_storeu_si32(&output[i * 3], pixel);
-					}
-					write(STDOUT_FILENO, output, strLength);
-					return;
+					__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
+					_mm_storeu_si32(&output[i * 3], pixel);
 				}
+				write(STDOUT_FILENO, output, strLength);
+				return;
 			}
 		}
 	}
