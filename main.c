@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <immintrin.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 typedef char i8;
 typedef unsigned char u8;
@@ -123,13 +124,22 @@ struct thread_data {
 
 #define NUM_THREADS 6  // You can adjust this number based on your needs
 
+// Add this global variable
+static atomic_bool header_found = 0;
+
 // Modified thread function
 void* search_header(void* arg) {
     struct thread_data *data = (struct thread_data*)arg;
     
     for (u32 row = data->start_row; row < data->end_row; row += 1) {
+        // Check if another thread found the header
+        if (atomic_load(&header_found)) {
+            return NULL;
+        }
+        
         for (u32 col = 0; col < data->header->width - 8; col += 1) {
             if (valid_header(data->file_content, data->header, &row, &col)) {
+                atomic_store(&header_found, 1);
                 data->found = 1;
                 data->found_row = row;
                 data->found_col = col;
@@ -142,6 +152,7 @@ void* search_header(void* arg) {
 
 // Modified decode_file function
 void decode_file(struct file_content *file_content, struct bmp_header *header) {
+    atomic_store(&header_found, 0);
     pthread_t threads[NUM_THREADS];
     struct thread_data thread_data_array[NUM_THREADS];
     
