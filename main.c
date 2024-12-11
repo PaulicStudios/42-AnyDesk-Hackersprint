@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <immintrin.h>
+#include <pthread.h>
 
 typedef char i8;
 typedef unsigned char u8;
@@ -109,37 +110,91 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
 	return 1;
 }
 
-void decode_file(struct file_content *file_content, struct bmp_header *header)
-{
-	for (u32 row = 0; row < header->height - 8; row += 1)
-	{
-		for (u32 col = 0; col < header->width - 8; col += 1)
-		{
-			if (!valid_header(file_content, header, &row, &col))
-				continue;
+// Add these structures for thread management
+struct thread_data {
+    struct file_content *file_content;
+    struct bmp_header *header;
+    u32 start_row;
+    u32 end_row;
+    u8 found;
+    u32 found_row;
+    u32 found_col;
+};
 
-			struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
-			if (lenght_pixel.b == 127 && lenght_pixel.r == 188 && lenght_pixel.g == 217)
-			{
-				PRINT_ERROR("No header found\n");
-				return;
-			}
+#define NUM_THREADS 4  // You can adjust this number based on your needs
 
-			const u16 strLength = lenght_pixel.b + lenght_pixel.r;
-			// printf("Lenght: %i\n", strLength);
+// Modified thread function
+void* search_header(void* arg) {
+    struct thread_data *data = (struct thread_data*)arg;
+    
+    for (u32 row = data->start_row; row < data->end_row; row += 1) {
+        for (u32 col = 0; col < data->header->width - 8; col += 1) {
+            if (valid_header(data->file_content, data->header, &row, &col)) {
+                data->found = 1;
+                data->found_row = row;
+                data->found_col = col;
+                return NULL;
+            }
+        }
+    }
+    return NULL;
+}
 
-			char output[strLength];
-			for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
-				const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+// Modified decode_file function
+void decode_file(struct file_content *file_content, struct bmp_header *header) {
+    pthread_t threads[NUM_THREADS];
+    struct thread_data thread_data_array[NUM_THREADS];
+    
+    // Calculate rows per thread
+    u32 rows_per_thread = (header->height - 8) / NUM_THREADS;
+    
+    // Create threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        thread_data_array[i].file_content = file_content;
+        thread_data_array[i].header = header;
+        thread_data_array[i].start_row = i * rows_per_thread;
+        thread_data_array[i].end_row = (i == NUM_THREADS - 1) ? 
+            header->height - 8 : (i + 1) * rows_per_thread;
+        thread_data_array[i].found = 0;
+        
+        if (pthread_create(&threads[i], NULL, search_header, 
+            (void*)&thread_data_array[i]) != 0) {
+            PRINT_ERROR("Failed to create thread\n");
+            return;
+        }
+    }
+    
+    // Wait for all threads to complete
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    
+    // Check results from all threads
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (thread_data_array[i].found) {
+            u32 row = thread_data_array[i].found_row;
+            u32 col = thread_data_array[i].found_col;
+            
+            struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
+            if (lenght_pixel.b == 127 && lenght_pixel.r == 188 && lenght_pixel.g == 217) {
+                PRINT_ERROR("No header found\n");
+                return;
+            }
 
-				__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
-				_mm_storeu_si32(&output[i * 3], pixel);
-			}
-			write(STDOUT_FILENO, output, strLength);
-			return;
-		}
-	}
-	PRINT_ERROR("No header found\n");
+            const u16 strLength = lenght_pixel.b + lenght_pixel.r;
+            char output[strLength];
+            for (u16 j = 0; j < strLength / 3 + 1; j += 1) {
+                const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (j / 6), 
+                    col + 2 + (j % 6));
+                __m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
+                _mm_storeu_si32(&output[j * 3], pixel);
+            }
+            write(STDOUT_FILENO, output, strLength);
+            return;
+        }
+    }
+    
+    PRINT_ERROR("No header found\n");
 }
 
 void export_file(struct file_content *file_content)
