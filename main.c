@@ -55,13 +55,34 @@ struct file_content   read_entire_file(char* filename)
 	return (struct file_content){file_data, file_size};
 }
 
+struct bgr_pixel
+{
+	u8 b;
+	u8 g;
+	u8 r;
+};
+
+u32 get_pixel_index(struct bmp_header *header, u32 row, u32 col)
+{
+	return row * header->width * 4 + col * 4 + header->data_offset;
+}
+
+struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
+{
+	u32 pixel_index = get_pixel_index(header, row, col);
+	return (struct bgr_pixel){file_content->data[pixel_index], file_content->data[pixel_index + 1], file_content->data[pixel_index + 2]};
+}
+
 void decode_file(struct file_content *file_content, struct bmp_header *header)
 {
+	char header_found = 0;
+	u16 strLength = 0;
+
 	for (u32 row = 0; row < header->height; row += 1)
 	{
 		for (u32 col = 0; col < header->width; col += 1)
 		{
-			u32 pixel_index = row * header->width * 4 + col * 4 + header->data_offset;
+			u32 pixel_index = get_pixel_index(header, row, col);
 			if (pixel_index + 3 > file_content->size)
 			{
 				printf("Out of bounds\n");
@@ -74,7 +95,28 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 
 			if (pb == 127 && pg == 188 && pr == 217)
 			{
-				printf("Found at %i x %i\n", col, row);
+				if (!header_found)
+				{
+					printf("Found at %i %i\n", row, col);
+
+					struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 8, col);
+					strLength = lenght_pixel.b + lenght_pixel.g + lenght_pixel.r;
+					printf("Lenght: %i\n", strLength);
+					header_found = 1;
+					// row += 1;
+				} else {
+					struct bgr_pixel pixel = get_pixel(file_content, header, row, col);
+					for (u8 i = 0; i < 8; i += 1)
+					{
+						if (strLength == 0)
+							break;
+
+						struct bgr_pixel char_pixel = get_pixel(file_content, header, row, col + i);
+						printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
+						strLength -= 1;
+					}
+					printf("Pixel: %i\n", pixel.b + pixel.g + pixel.r);
+				}
 			}
 			// printf("BGR: %i %i %i\n", pb, pg, pr);
 		}
