@@ -65,14 +65,17 @@ struct bgr_pixel
 	u8 r;
 };
 
-u32 get_pixel_index(struct bmp_header *header, u16 row, u16 col)
+u32 get_pixel_index(struct bmp_header *header, struct file_content *file_content, u16 row, u16 col)
 {
-	return row * header->width * 4 + col * 4 + header->data_offset;
+	u32 ind = row * header->width * 4 + col * 4 + header->data_offset;
+	if (ind + 3 > file_content->size)
+		return 0;
+	return ind;
 }
 
 struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header *header, u16 row, u16 col)
 {
-	u32 pixel_index = get_pixel_index(header, row, col);
+	u32 pixel_index = get_pixel_index(header, file_content, row, col);
 	return (struct bgr_pixel){file_content->data[pixel_index], file_content->data[pixel_index + 1], file_content->data[pixel_index + 2]};
 }
 
@@ -86,7 +89,7 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u1
     );
 
     for (u8 i = 0; i < 8; i += 1) {
-        u32 idx = get_pixel_index(header, *row + i, *col);
+        u32 idx = get_pixel_index(header, file_content, *row + i, *col);
         __m128i pixels = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
 
         // Compare all bytes at once
@@ -97,7 +100,7 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u1
             return 0;
     }
 
-	u32 idx = get_pixel_index(header, *row + 7, *col);
+	u32 idx = get_pixel_index(header, file_content, *row + 7, *col);
 	__m128i hpixels1 = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
 	__m128i hpixels2 = _mm_loadu_si128((__m128i*)&file_content->data[idx + 8]);
 	__m128i cmp1 = _mm_cmpeq_epi8(hpixels1, target);
@@ -137,7 +140,7 @@ void* search_header(void* arg) {
             return NULL;
         }
         
-        for (u16 col = 0; col < data->header->width - 7; col += 1) {
+        for (u16 col = 0; col < data->header->width; col += 1) {
             if (valid_header(data->file_content, data->header, &row, &col)) {
                 atomic_store(&header_found, 1);
                 data->found = 1;
@@ -157,7 +160,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header) {
     struct thread_data thread_data_array[NUM_THREADS];
     
     // Calculate rows per thread
-    u32 rows_per_thread = (header->height - 7) / NUM_THREADS;
+    u32 rows_per_thread = (header->height) / NUM_THREADS;
     
     // Create threads
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -165,7 +168,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header) {
         thread_data_array[i].header = header;
         thread_data_array[i].start_row = i * rows_per_thread;
         thread_data_array[i].end_row = (i == NUM_THREADS - 1) ? 
-            header->height - 8 : (i + 1) * rows_per_thread;
+            header->height : (i + 1) * rows_per_thread;
         thread_data_array[i].found = 0;
         
         if (pthread_create(&threads[i], NULL, search_header, 
@@ -195,7 +198,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header) {
             const u16 strLength = lenght_pixel.b + lenght_pixel.r;
             char output[strLength];
             for (u16 j = 0; j < strLength / 3 + 1; j += 1) {
-                const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (j / 6), 
+                const u32 char_pixel_ind = get_pixel_index(header, file_content, row + 5 - (j / 6), 
                     col + 2 + (j % 6));
                 __m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
                 _mm_storeu_si32(&output[j * 3], pixel);
