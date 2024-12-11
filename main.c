@@ -118,8 +118,13 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 			if (!valid_header(file_content, header, &row, &col))
 				continue;
 
-
 			struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
+			if (lenght_pixel.b == 127 && lenght_pixel.r == 188 && lenght_pixel.g == 217)
+			{
+				PRINT_ERROR("No header found\n");
+				return;
+			}
+
 			const u16 strLength = lenght_pixel.b + lenght_pixel.r;
 			// printf("Lenght: %i\n", strLength);
 
