@@ -73,6 +73,21 @@ struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header 
 	return (struct bgr_pixel){file_content->data[pixel_index], file_content->data[pixel_index + 1], file_content->data[pixel_index + 2]};
 }
 
+u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
+{
+	for (u8 i = 0; i < 8; i++) {
+		struct bgr_pixel pixel = get_pixel(file_content, header, row + i, col);
+		if (pixel.b != 127 || pixel.g != 188 || pixel.r != 217)
+			return 0;
+	}
+	for (u8 i = 0; i < 7; i++) {
+		struct bgr_pixel pixel = get_pixel(file_content, header, row + 7, col + i);
+		if (pixel.b != 127 || pixel.g != 188 || pixel.r != 217)
+			return 0;
+	}
+	return 1;
+}
+
 void decode_file(struct file_content *file_content, struct bmp_header *header)
 {
 	char header_found = 0;
@@ -82,9 +97,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 	{
 		for (u32 col = 0; col < header->width; col += 1)
 		{
-			struct bgr_pixel pixel = get_pixel(file_content, header, row, col);
-
-			if (pixel.b == 127 && pixel.g == 188 && pixel.r == 217)
+			if (valid_header(file_content, header, row, col))
 			{
 				if (!header_found)
 				{
@@ -117,6 +130,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 							write(STDOUT_FILENO, (char *) &(char_pixel.r), 1);
 						}
 					}
+					write(STDOUT_FILENO, "\n", 1);
 					return;
 				}
 			}
