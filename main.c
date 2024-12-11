@@ -95,7 +95,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 
 					struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
 					strLength = lenght_pixel.b + lenght_pixel.r;
-					printf("Lenght: %i\n", strLength);
+					// printf("Lenght: %i\n", strLength);
 					header_found = 1;
 
 					for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
@@ -104,42 +104,22 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 						u8 remaining = (strLength - (i * 3));
 
 						if (remaining == 1)
-							printf("%c", char_pixel.b);
+							write(STDOUT_FILENO, (char *) &(char_pixel.b), 1);
 						else if (remaining == 2)
-							printf("%c%c", char_pixel.b, char_pixel.g);
+						{
+							write(STDOUT_FILENO, (char *) &(char_pixel.b), 1);
+							write(STDOUT_FILENO, (char *) &(char_pixel.g), 1);
+						}
 						else if (remaining >= 3)
-							printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
-	
-						// if (remaining == 0)
-						// printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
-						// else if (remaining == 1)
-						// 	printf("%c%c", char_pixel.b, char_pixel.g);
-						// else if (remaining == 2)
-						// 	printf("%c", char_pixel.b);
-					
-						// u32 temp = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
-						// file_content->data[temp] = (u8) 255;
-						// file_content->data[temp + 1] = (u8) 0;
-						// file_content->data[temp + 2] = (u8) 0;
+						{
+							write(STDOUT_FILENO, (char *) &(char_pixel.b), 1);
+							write(STDOUT_FILENO, (char *) &(char_pixel.g), 1);
+							write(STDOUT_FILENO, (char *) &(char_pixel.r), 1);
+						}
 					}
-					printf("\n");
-				} else {
-					// struct bgr_pixel pixel = get_pixel(file_content, header, row, col);
-					// for (u8 i = 0; i < 8; i += 1)
-					// {
-					// 	if (strLength == 0)
-					// 		break;
-
-					// 	struct bgr_pixel char_pixel = get_pixel(file_content, header, row, col + 1 + i);
-					// 	printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
-					// 	strLength -= 3;
-					// 	if (strLength == 0)
-					// 		printf("\n");
-					// }
-					// printf("Pixel: %i\n", pixel.b + pixel.g + pixel.r);
+					return;
 				}
 			}
-			// printf("BGR: %i %i %i\n", pb, pg, pr);
 		}
 	}
 }
@@ -170,9 +150,9 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	struct bmp_header* header = (struct bmp_header*) file_content.data;
-	printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
+	// printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
 
 	decode_file(&file_content, header);
-	export_file(&file_content);
+	// export_file(&file_content);
 	return 0;
 }
