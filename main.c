@@ -74,7 +74,7 @@ struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header 
 	return (struct bgr_pixel){file_content->data[pixel_index], file_content->data[pixel_index + 1], file_content->data[pixel_index + 2]};
 }
 
-u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
+u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 *row, u32 *col)
 {
 	__m128i target = _mm_setr_epi8(
         127, (char)188, (char)217, 0,  // First pixel (-1 for alpha to ignore)
@@ -84,7 +84,7 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
     );
 
     for (u8 i = 0; i < 8; i += 1) {
-        u32 idx = get_pixel_index(header, row + i, col);
+        u32 idx = get_pixel_index(header, *row + i, *col);
         __m128i pixels = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
 
         // Compare all bytes at once
@@ -95,7 +95,7 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
             return 0;
     }
 
-	u32 idx = get_pixel_index(header, row + 7, col);
+	u32 idx = get_pixel_index(header, *row + 7, *col);
 	__m128i hpixels1 = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
 	__m128i hpixels2 = _mm_loadu_si128((__m128i*)&file_content->data[idx + 8]);
 	__m128i cmp1 = _mm_cmpeq_epi8(hpixels1, target);
@@ -115,27 +115,23 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 	{
 		for (u32 col = 0; col < header->width - 8; col += 1)
 		{
-			if (valid_header(file_content, header, row, col))
-			{
-				// printf("Found at %i %i\n", row, col);
-				// file_content->data[pixel_index] = (u8) 255;
-				// file_content->data[pixel_index + 1] = (u8) 0;
-				// file_content->data[pixel_index + 2] = (u8) 0;
+			if (!valid_header(file_content, header, &row, &col))
+				continue;
 
-				struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
-				const u16 strLength = lenght_pixel.b + lenght_pixel.r;
-				// printf("Lenght: %i\n", strLength);
 
-				char output[strLength];
-				for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
-					const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+			struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
+			const u16 strLength = lenght_pixel.b + lenght_pixel.r;
+			// printf("Lenght: %i\n", strLength);
 
-					__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
-					_mm_storeu_si32(&output[i * 3], pixel);
-				}
-				write(STDOUT_FILENO, output, strLength);
-				return;
+			char output[strLength];
+			for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
+				const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+
+				__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
+				_mm_storeu_si32(&output[i * 3], pixel);
 			}
+			write(STDOUT_FILENO, output, strLength);
+			return;
 		}
 	}
 	PRINT_ERROR("No header found\n");
