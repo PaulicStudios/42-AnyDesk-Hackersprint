@@ -77,10 +77,10 @@ struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header 
 u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
 {
 	__m128i target = _mm_setr_epi8(
-        127, 188, 217, 0,  // First pixel (-1 for alpha to ignore)
-        127, 188, 217, 0,  // Second pixel
-        127, 188, 217, 0,  // Third pixel
-        127, 188, 217, 0   // Fourth pixel
+        127, (char)188, (char)217, 0,  // First pixel (-1 for alpha to ignore)
+        127, (char)188, (char)217, 0,  // Second pixel
+        127, (char)188, (char)217, 0,  // Third pixel
+        127, (char)188, (char)217, 0   // Fourth pixel
     );
 
     for (u8 i = 0; i < 8; i += 1) {
