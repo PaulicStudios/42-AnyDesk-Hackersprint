@@ -82,25 +82,16 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 	{
 		for (u32 col = 0; col < header->width; col += 1)
 		{
-			u32 pixel_index = get_pixel_index(header, row, col);
-			if (pixel_index + 3 > file_content->size)
-			{
-				printf("Out of bounds\n");
-				return;
-			}
-			u8 pb = file_content->data[pixel_index];
-			u8 pg = file_content->data[pixel_index + 1];
-			u8 pr = file_content->data[pixel_index + 2];
-			// u8 pa = file_content->data[pixel_index + 3];
+			struct bgr_pixel pixel = get_pixel(file_content, header, row, col);
 
-			if (pb == 127 && pg == 188 && pr == 217)
+			if (pixel.b == 127 && pixel.g == 188 && pixel.r == 217)
 			{
 				if (!header_found)
 				{
-					printf("Found at %i %i\n", row, col);
-					file_content->data[pixel_index] = (u8) 255;
-					file_content->data[pixel_index + 1] = (u8) 0;
-					file_content->data[pixel_index + 2] = (u8) 0;
+					// printf("Found at %i %i\n", row, col);
+					// file_content->data[pixel_index] = (u8) 255;
+					// file_content->data[pixel_index + 1] = (u8) 0;
+					// file_content->data[pixel_index + 2] = (u8) 0;
 
 					struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
 					strLength = lenght_pixel.b + lenght_pixel.r;
@@ -110,18 +101,26 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 					for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
 						struct bgr_pixel char_pixel = get_pixel(file_content, header, row + 5 - (i / 6), col + 2 + (i % 6));
 
-						// u8 remaining = (strLength - (i * 3)) % 3;
+						u8 remaining = (strLength - (i * 3));
+
+						if (remaining == 1)
+							printf("%c", char_pixel.b);
+						else if (remaining == 2)
+							printf("%c%c", char_pixel.b, char_pixel.g);
+						else if (remaining >= 3)
+							printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
+	
 						// if (remaining == 0)
-						printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
+						// printf("%c%c%c", char_pixel.b, char_pixel.g, char_pixel.r);
 						// else if (remaining == 1)
 						// 	printf("%c%c", char_pixel.b, char_pixel.g);
 						// else if (remaining == 2)
 						// 	printf("%c", char_pixel.b);
 					
-						u32 temp = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
-						file_content->data[temp] = (u8) 255;
-						file_content->data[temp + 1] = (u8) 0;
-						file_content->data[temp + 2] = (u8) 0;
+						// u32 temp = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+						// file_content->data[temp] = (u8) 255;
+						// file_content->data[temp + 1] = (u8) 0;
+						// file_content->data[temp + 2] = (u8) 0;
 					}
 					printf("\n");
 				} else {
