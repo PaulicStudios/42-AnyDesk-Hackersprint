@@ -121,7 +121,7 @@ struct thread_data {
     u32 found_col;
 };
 
-#define NUM_THREADS 4  // You can adjust this number based on your needs
+#define NUM_THREADS 8  // You can adjust this number based on your needs
 
 // Modified thread function
 void* search_header(void* arg) {
