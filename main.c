@@ -130,7 +130,6 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 							write(STDOUT_FILENO, (char *) &(char_pixel.r), 1);
 						}
 					}
-					write(STDOUT_FILENO, "\n", 1);
 					return;
 				}
 			}
