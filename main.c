@@ -137,7 +137,7 @@ void* search_header(void* arg) {
             return NULL;
         }
         
-        for (u16 col = 0; col < data->header->width - 8; col += 1) {
+        for (u16 col = 0; col < data->header->width - 7; col += 1) {
             if (valid_header(data->file_content, data->header, &row, &col)) {
                 atomic_store(&header_found, 1);
                 data->found = 1;
@@ -157,7 +157,7 @@ void decode_file(struct file_content *file_content, struct bmp_header *header) {
     struct thread_data thread_data_array[NUM_THREADS];
     
     // Calculate rows per thread
-    u32 rows_per_thread = (header->height - 8) / NUM_THREADS;
+    u32 rows_per_thread = (header->height - 7) / NUM_THREADS;
     
     // Create threads
     for (int i = 0; i < NUM_THREADS; i++) {
