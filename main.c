@@ -65,18 +65,18 @@ struct bgr_pixel
 	u8 r;
 };
 
-u32 get_pixel_index(struct bmp_header *header, u32 row, u32 col)
+u32 get_pixel_index(struct bmp_header *header, u16 row, u16 col)
 {
 	return row * header->width * 4 + col * 4 + header->data_offset;
 }
 
-struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
+struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header *header, u16 row, u16 col)
 {
 	u32 pixel_index = get_pixel_index(header, row, col);
 	return (struct bgr_pixel){file_content->data[pixel_index], file_content->data[pixel_index + 1], file_content->data[pixel_index + 2]};
 }
 
-u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 *row, u32 *col)
+u8 valid_header(struct file_content *file_content, struct bmp_header *header, u16 *row, u16 *col)
 {
 	__m128i target = _mm_setr_epi8(
         127, (char)188, (char)217, 0,  // First pixel (-1 for alpha to ignore)
@@ -115,11 +115,11 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
 struct thread_data {
     struct file_content *file_content;
     struct bmp_header *header;
-    u32 start_row;
-    u32 end_row;
+    u16 start_row;
+    u16 end_row;
     u8 found;
-    u32 found_row;
-    u32 found_col;
+    u16 found_row;
+    u16 found_col;
 };
 
 #define NUM_THREADS 12  // You can adjust this number based on your needs
@@ -131,13 +131,13 @@ static atomic_bool header_found = 0;
 void* search_header(void* arg) {
     struct thread_data *data = (struct thread_data*)arg;
     
-    for (u32 row = data->start_row; row < data->end_row; row += 1) {
+    for (u16 row = data->start_row; row < data->end_row; row += 1) {
         // Check if another thread found the header
         if (atomic_load(&header_found)) {
             return NULL;
         }
         
-        for (u32 col = 0; col < data->header->width - 8; col += 1) {
+        for (u16 col = 0; col < data->header->width - 8; col += 1) {
             if (valid_header(data->file_content, data->header, &row, &col)) {
                 atomic_store(&header_found, 1);
                 data->found = 1;
@@ -183,8 +183,8 @@ void decode_file(struct file_content *file_content, struct bmp_header *header) {
     // Check results from all threads
     for (int i = 0; i < NUM_THREADS; i++) {
         if (thread_data_array[i].found) {
-            u32 row = thread_data_array[i].found_row;
-            u32 col = thread_data_array[i].found_col;
+            u16 row = thread_data_array[i].found_row;
+            u16 col = thread_data_array[i].found_col;
             
             struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
             if (lenght_pixel.b == 127 && lenght_pixel.r == 188 && lenght_pixel.g == 217) {
