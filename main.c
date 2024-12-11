@@ -55,6 +55,32 @@ struct file_content   read_entire_file(char* filename)
 	return (struct file_content){file_data, file_size};
 }
 
+void decode_file(struct file_content *file_content, struct bmp_header *header)
+{
+	for (u32 row = 0; row < header->height; row += 1)
+	{
+		for (u32 col = 0; col < header->width; col += 1)
+		{
+			u32 pixel_index = row * header->width * 4 + col * 4 + header->data_offset;
+			if (pixel_index + 3 > file_content->size)
+			{
+				printf("Out of bounds\n");
+				return;
+			}
+			u8 pb = file_content->data[pixel_index];
+			u8 pg = file_content->data[pixel_index + 1];
+			u8 pr = file_content->data[pixel_index + 2];
+			// u8 pa = file_content->data[pixel_index + 3];
+
+			if (pb == 127 && pg == 188 && pr == 217)
+			{
+				printf("Found at %i x %i\n", col, row);
+			}
+			// printf("BGR: %i %i %i\n", pb, pg, pr);
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc != 2)
@@ -70,5 +96,7 @@ int main(int argc, char** argv)
 	}
 	struct bmp_header* header = (struct bmp_header*) file_content.data;
 	printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
+
+	decode_file(&file_content, header);
 	return 0;
 }
