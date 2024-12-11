@@ -111,9 +111,9 @@ u8 valid_header(struct file_content *file_content, struct bmp_header *header, u3
 
 void decode_file(struct file_content *file_content, struct bmp_header *header)
 {
-	for (u32 row = 0; row < header->height; row += 1)
+	for (u32 row = 0; row < header->height - 8; row += 1)
 	{
-		for (u32 col = 0; col < header->width; col += 1)
+		for (u32 col = 0; col < header->width - 8; col += 1)
 		{
 			if (valid_header(file_content, header, row, col))
 			{
@@ -123,12 +123,12 @@ void decode_file(struct file_content *file_content, struct bmp_header *header)
 				// file_content->data[pixel_index + 2] = (u8) 0;
 
 				struct bgr_pixel lenght_pixel = get_pixel(file_content, header, row + 7, col + 7);
-				u16 strLength = lenght_pixel.b + lenght_pixel.r;
+				const u16 strLength = lenght_pixel.b + lenght_pixel.r;
 				// printf("Lenght: %i\n", strLength);
 
 				char output[strLength];
 				for (u16 i = 0; i < strLength / 3 + 1; i += 1) {
-					u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
+					const u32 char_pixel_ind = get_pixel_index(header, row + 5 - (i / 6), col + 2 + (i % 6));
 
 					__m128i pixel = _mm_loadu_si32(&file_content->data[char_pixel_ind]);
 					_mm_storeu_si32(&output[i * 3], pixel);
