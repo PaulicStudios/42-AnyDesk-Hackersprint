@@ -122,7 +122,7 @@ struct thread_data {
     u32 found_col;
 };
 
-#define NUM_THREADS 6  // You can adjust this number based on your needs
+#define NUM_THREADS 12  // You can adjust this number based on your needs
 
 // Add this global variable
 static atomic_bool header_found = 0;
