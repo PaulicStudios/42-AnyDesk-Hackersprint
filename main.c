@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <immintrin.h>
 
 typedef char i8;
 typedef unsigned char u8;
@@ -75,16 +76,36 @@ struct bgr_pixel get_pixel(struct file_content *file_content, struct bmp_header 
 
 u8 valid_header(struct file_content *file_content, struct bmp_header *header, u32 row, u32 col)
 {
-	for (u8 i = 0; i < 8; i++) {
-		struct bgr_pixel pixel = get_pixel(file_content, header, row + i, col);
-		if (pixel.b != 127 || pixel.g != 188 || pixel.r != 217)
-			return 0;
-	}
-	for (u8 i = 0; i < 7; i++) {
-		struct bgr_pixel pixel = get_pixel(file_content, header, row + 7, col + i);
-		if (pixel.b != 127 || pixel.g != 188 || pixel.r != 217)
-			return 0;
-	}
+	__m128i target = _mm_setr_epi8(
+        127, 188, 217, 0,  // First pixel (-1 for alpha to ignore)
+        127, 188, 217, 0,  // Second pixel
+        127, 188, 217, 0,  // Third pixel
+        127, 188, 217, 0   // Fourth pixel
+    );
+
+    for (u8 i = 0; i < 8; i += 1) {
+        u32 idx = get_pixel_index(header, row + i, col);
+        __m128i pixels = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
+
+        // Compare all bytes at once
+        __m128i cmp = _mm_cmpeq_epi8(pixels, target);
+        int mask = _mm_movemask_epi8(cmp);
+
+        if ((mask & 0x7) != 0x7)
+            return 0;
+    }
+
+	u32 idx = get_pixel_index(header, row + 7, col);
+	__m128i hpixels1 = _mm_loadu_si128((__m128i*)&file_content->data[idx]);
+	__m128i hpixels2 = _mm_loadu_si128((__m128i*)&file_content->data[idx + 8]);
+	__m128i cmp1 = _mm_cmpeq_epi8(hpixels1, target);
+	__m128i cmp2 = _mm_cmpeq_epi8(hpixels2, target);
+	int mask1 = _mm_movemask_epi8(cmp1);
+	int mask2 = _mm_movemask_epi8(cmp2);
+
+	if ((mask1 & 0x7777) != 0x7777 || (mask2 & 0x7777) != 0x7777)
+		return 0;
+
 	return 1;
 }
 

@@ -5,3 +5,4 @@ decoder
 output.bmp
 gmon.out
 profile.txt
+gmon.sum

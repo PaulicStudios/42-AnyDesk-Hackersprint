@@ -1,8 +1,8 @@
 run: build
-	time ./decoder logo.bmp
+	./decoder logo.bmp
 
 cave: build
-	time ./decoder cave.bmp
+	./decoder cave.bmp
 
 build:
 	gcc -O0 -Wall -Wextra -Werror main.c -o decoder -lpthread
@@ -10,4 +10,9 @@ build:
 perf:
 	gcc -O0 -Wall -Wextra -Werror -pg main.c -o decoder -lpthread
 	./decoder cave.bmp
-	gprof decoder gmon.out > profile.txt
+	mv gmon.out gmon.sum
+	./decoder cave.bmp
+	gprof -s decoder gmon.out gmon.sum
+	./decoder cave.bmp
+	gprof -s decoder gmon.out gmon.sum
+	gprof decoder gmon.sum > profile.txt
